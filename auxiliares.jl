@@ -31,7 +31,17 @@ function mudaparamax(m::Model)
   end
   return m
 end
-
+#testei
+function testabin(v::Vector)
+    bin=1
+    tam=length(v)
+    for i in 1:tam
+        if v[i]!=0 && v[i]!=1
+            bin=0
+        end
+    end
+    return bin
+end
 #testei
 function podainv(no::node)
   ###retorna 1 caso positivo (relaxação inviavel, realize a poda) e 0 caso a relaxação seja viavel e prossiga para outros testes
@@ -73,22 +83,15 @@ function atualizaLupper(lista::list)
   lista.Zsup=maior
   lista.isup=ind
 end
-#testei
-function testabin(v::Vector)
-    bin=1
-    tam=length(v)
-    for i in 1:tam
-        if v[i]!=0 && v[i]!=1
-            bin=0
-        end
-    end
-    return bin
-end
+
 
 #duvida se uso o "ou", só uso se a função parar assim que encontra uma resposta positiva
 #testei
 function bound(no::node,lista::list)
-  if podainv(no) == 1 || podaotim(no,lista) == 1 || podalimit(no,lista) == 1
+  #retorno 1 se fiz poda, 0 c.c
+  if podainv(no) == 1
+    return 1
+  elseif podaotim(no,lista) == 1 || podalimit(no,lista) == 1
     return 1
   end
   return 0
@@ -203,43 +206,18 @@ function MILPSolver(m)
       S=inserefilhos(no,S)
       #a inserefilhos ja atualiza os bounds
     end
+
+    ϵ = abs(S.Zsup - S.Zinf)
   end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  n=S.L
-  if podainv(n) == 1 || podaotim(n,lista) == 1 || podalimit(n,lista) == 1
-    pop!(lista)
+  if (cont > 1e3)
+    return :UserLimit, S.xOt
+  elseif (S.Zinf < -1e5)
+    return :Infeasible, S.xOt
   end
 
+  return :Optimal, S.xOt
+
+end
 
 #### quando atualizo op lb tenho que tirar da lista td mundo q tem um up menor que ele
