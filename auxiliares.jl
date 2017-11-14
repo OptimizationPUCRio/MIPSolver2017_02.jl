@@ -77,7 +77,7 @@ function atualizaLupper(lista::list)
   for i in 1:tam
     if lista.L[i].zUb > maior
       maior=lista.L[i].zUb
-      #ind=i
+      ind=i
     end
   end
   lista.Zsup=maior
@@ -142,7 +142,7 @@ function inserefilhos(no::node,S::list)
   return S
 end
 
-function MILPSolver(m)
+function solveMIP(m)
 
   #antes de tudo devemos mudar nosso problema para Max
   m=mudaparamax(m)
@@ -159,7 +159,7 @@ function MILPSolver(m)
   #vejo se o problema ja deu a resposta inteira mesmo com a relaxação
   if testabin(no1.xUb) == 1
     println("Solução otima encontrada")
-    return no1.status,no1.xRel
+    return no1.status,no1.xUb
   end
 
   #como nao é bin nem inviavel podamos (branch), escolho o x mais fracionario para fixar
@@ -210,13 +210,13 @@ function MILPSolver(m)
     ϵ = abs(S.Zsup - S.Zinf)
   end
 
-  if (cont > 1e3)
-    return :UserLimit, S.xOt
+  if (cont >= 1e3)
+    return :UserLimit, S.xOt, S
   elseif (S.Zinf < -1e5)
-    return :Infeasible, S.xOt
+    return :Infeasible, S.xOt, S
   end
 
-  return :Optimal, S.xOt
+  return :Optimal, S.xOt, S
 
 end
 
