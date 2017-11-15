@@ -4,10 +4,10 @@ using Gurobi
 
 
 mutable struct node
-  xUb::Vector{Float64}
-  xLb::Vector{Int}
+  xUb
+  xLb
   zUb::Float64
-  zLb::Int
+  zLb
   modelo::JuMP.Model
   status::Symbol
 end
@@ -23,7 +23,7 @@ end
 
 
 ### meu prob é de max
-#testei
+
 function mudaparamax(m::Model)
   #muda o c da função objetivo
   if m.objSense == :Min
@@ -31,7 +31,7 @@ function mudaparamax(m::Model)
   end
   return m
 end
-#testei
+
 function testabin(v::Vector)
     bin=1
     tam=length(v)
@@ -42,7 +42,7 @@ function testabin(v::Vector)
     end
     return bin
 end
-#testei
+
 function podainv(no::node)
   ###retorna 1 caso positivo (relaxação inviavel, realize a poda) e 0 caso a relaxação seja viavel e prossiga para outros testes
   if no.status == :Optimal
@@ -50,10 +50,11 @@ function podainv(no::node)
   end
   return 1
 end
-#testei
+
 function podaotim(no::node,lista::list)
   if testabin(no.xUb) == 1
     no.xLb=no.xUb
+    no.zLb=no.zUb
     if lista.Zinf < no.zUb
       lista.Zinf = no.zUb
       lista.xOt = no.xUb
@@ -69,7 +70,7 @@ function podalimit(no::node,lista::list)
   end
   return 0
 end
-#testei
+
 function atualizaLupper(lista::list)
   tam=length(lista.L)
   maior=-1e10
@@ -86,7 +87,6 @@ end
 
 
 #duvida se uso o "ou", só uso se a função parar assim que encontra uma resposta positiva
-#testei
 function bound(no::node,lista::list)
   #retorno 1 se fiz poda, 0 c.c
   if podainv(no) == 1
@@ -97,7 +97,6 @@ function bound(no::node,lista::list)
   return 0
 end
 
-#testei
 function preencheno(mod::JuMP.Model)
   m=deepcopy(mod)
   status=solve(m, relaxation=true)
@@ -107,7 +106,6 @@ function preencheno(mod::JuMP.Model)
   return no1
 end
 
-#testei
 function achamaisfrac(no::node)
   tam=length(no.xUb)
   f=copy(no.xUb)
@@ -120,7 +118,6 @@ function achamaisfrac(no::node)
   return findmax(f)
 end
 
-#testei
 function inserefilhos(no::node,S::list)
 
   max,ind=achamaisfrac(no)
@@ -142,7 +139,23 @@ function inserefilhos(no::node,S::list)
   return S
 end
 
-function solveMIP(m)
+function criaretornos(m,obj,xotim,status,tempo,bound,cont,nos,solint)
+  m.objVal = copy(obj)
+  m.colVal = copy(xotim)
+  m.objBound = bound
+  m.ext[:Time] = tempo
+  m.ext[:status] = status
+  m.ext[:nodes] = nos
+  m.ext[:iter] = cont
+  m.ext[:solint] = solint
+  return m
+end
+
+function solveMIP(mod)
+
+  tic()
+
+  m=deepcopy(mod)
 
   #antes de tudo devemos mudar nosso problema para Max
   m=mudaparamax(m)
@@ -152,14 +165,20 @@ function solveMIP(m)
 
   #vejo se o problema é inviavel
   if podainv(no1) == 1
+    model=criaretornos(mod,no1.zLb,no1.xLb,no1.status,0,0,0,0,0)
+    if no1.status == :Unbounded
+      println("Problema Unbounded")
+      return model
+    end
     println("Problema inviavel")
-    return no1.status,no1.xRel
+    return model
   end
 
   #vejo se o problema ja deu a resposta inteira mesmo com a relaxação
   if testabin(no1.xUb) == 1
+    model=criaretornos(mod,no1.zUb,no1.xUb,no1.status,0,0,0,0,1)
     println("Solução otima encontrada")
-    return no1.status,no1.xUb
+    return model
   end
 
   #como nao é bin nem inviavel podamos (branch), escolho o x mais fracionario para fixar
@@ -177,7 +196,7 @@ function solveMIP(m)
   ϵ = abs(S.Zsup - S.Zinf)
   cont=0
 
-  while ϵ > 1e-5 && cont < 1e3
+  while ϵ > 1e-5 && cont < 1e3 && length(S.L)!=0
 
     cont=cont+1
 
@@ -210,13 +229,28 @@ function solveMIP(m)
     ϵ = abs(S.Zsup - S.Zinf)
   end
 
+  time=toc()
+
   if (cont >= 1e3)
-    return :UserLimit, S.xOt, S
+    status = :UserLimit
   elseif (S.Zinf < -1e5)
-    return :Infeasible, S.xOt, S
+    status = :Infeasible
+  else
+    status = :Optimal
   end
 
-  return :Optimal, S.xOt, S
+
+  if mod.objSense == :Min
+    obj=-(S.Zinf)
+  else
+    obj=S.Zinf
+  end
+  xotim=S.xOt
+  nos=length(S.L)
+  model=criaretornos(mod,obj,xotim,status,time,[S.Zsup, S.Zinf],cont,nos,0)
+
+
+  return model
 
 end
 
