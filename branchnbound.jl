@@ -152,11 +152,11 @@ function criaretornos(m,obj,xotim,status,tempo,bound,cont,nos,solint)
   m.objVal = copy(obj)
   m.colVal = copy(xotim)
   m.objBound = bound
-  m.ext[:Time] = tempo
+  m.ext[:time] = tempo
   m.ext[:status] = status
   m.ext[:nodes] = nos
   m.ext[:iter] = cont
-  m.ext[:solint] = solint
+  m.ext[:intsols] = solint
   return m
 end
 
@@ -190,7 +190,7 @@ function solveMIP(mod)
     else
       obj=no1.zUb
     end
-    model=criaretornos(mod,obj,no1.xUb,no1.status,0,[no1.zUb, no1.zLb],0,0,1)
+    model=criaretornos(mod,obj,no1.xUb,no1.status,0,no1.zUb,0,0,1)
     println("Solução otima encontrada")
     return model
   end
@@ -210,15 +210,15 @@ function solveMIP(mod)
   ϵ = abs(S.Zsup - S.Zinf)
   cont=0
 
-  while ϵ > 1e-5 && cont < 1e3 && length(S.L)!=0
+  while ϵ > 1e-5 && cont < 1e4 && length(S.L)!=0
 
     cont=cont+1
 
     #seleciono um no para testar o bound
-    #a cada 5 vezes escolhendo o no do mesmo ramo (sempre retirando do final da lista), mudo para a esolha do que tem maior upperbound
+    #a cada 8 vezes escolhendo o no do mesmo ramo (sempre retirando do final da lista), mudo para a esolha do que tem maior upperbound
     #faço isso com o objetivo de não ficar preso em um nó que pode não ser o otimo escolho o que tem maior upper bound pq neste não corro
     #o risco de analisar um nó que possui um upperbound inferior ao da função objetivo
-    h=(cont/5)
+    h=(cont/8)
 
     if floor(h) == h
       no=S.L[S.isup]
@@ -245,7 +245,7 @@ function solveMIP(mod)
 
   time=toc()
 
-  if (cont >= 1e3)
+  if (cont >= 1e4)
     status = :UserLimit
   elseif (S.Zinf < -1e5)
     status = :Infeasible
@@ -261,11 +261,9 @@ function solveMIP(mod)
   end
   xotim=S.xOt
   nos=length(S.L)
-  model=criaretornos(mod,obj,xotim,status,time,[S.Zsup, S.Zinf],cont,nos,0)
+  model=criaretornos(mod,obj,xotim,status,time,S.Zinf,cont,nos,0)
 
 
   return model
 
 end
-
-#### quando atualizo op lb tenho que tirar da lista td mundo q tem um up menor que ele
