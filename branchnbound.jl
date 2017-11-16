@@ -245,7 +245,7 @@ function solveMIP(mod)
 
   time=toc()
 
-  if (cont >= exp10(4)
+  if cont >= exp10(4)
     status = :UserLimit
   elseif (S.Zinf < -1e5)
     status = :Infeasible
