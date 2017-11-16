@@ -1,4 +1,4 @@
-workspace()
+
 using JuMP
 using Gurobi
 
@@ -210,7 +210,7 @@ function solveMIP(mod)
   ϵ = abs(S.Zsup - S.Zinf)
   cont=0
   jg_time0 = time_ns()
-  while ϵ > 1e-5 && cont < exp10(3) && length(S.L)!=0
+  while ϵ > 1e-5 && cont < 5000 && length(S.L)!=0
     if (time_ns()-jg_time0)/1e9 > 180
       status = :UserLimit
       break
@@ -222,9 +222,9 @@ function solveMIP(mod)
     #a cada 8 vezes escolhendo o no do mesmo ramo (sempre retirando do final da lista), mudo para a esolha do que tem maior upperbound
     #faço isso com o objetivo de não ficar preso em um nó que pode não ser o otimo escolho o que tem maior upper bound pq neste não corro
     #o risco de analisar um nó que possui um upperbound inferior ao da função objetivo
-    h=(cont/8)
+    h=(cont/30)
 
-    if floor(h) == h
+    if floor(h) == h && S.isup != 0
       no=S.L[S.isup]
       deleteat!(S.L,S.isup)
     else
@@ -249,7 +249,7 @@ function solveMIP(mod)
 
   time=toc()
 
-  if cont >= exp10(3)
+  if cont >= 5000
     status = :UserLimit
   elseif (S.Zinf < -1e5)
     status = :Infeasible
