@@ -211,7 +211,7 @@ function solveMIP(mod)
   cont=0
   jg_time0 = time_ns()
   while ϵ > 1e-5 && cont < exp10(3) && length(S.L)!=0
-    if (time_ns()-jg_time0)/1e-9 > 180
+    if (time_ns()-jg_time0)/1e9 > 180
       status = :UserLimit
       break
     end
