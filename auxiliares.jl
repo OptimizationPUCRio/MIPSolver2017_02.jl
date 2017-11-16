@@ -6,7 +6,7 @@ using Gurobi
 mutable struct node
   xUb
   xLb
-  zUb::Float64
+  zUb
   zLb
   modelo::JuMP.Model
   status::Symbol
@@ -18,6 +18,7 @@ mutable struct list
   Zinf
   xOt
   isup
+  solint
 end
 
 
@@ -32,13 +33,15 @@ function mudaparamax(m::Model)
   return m
 end
 
-function testabin(v::Vector)
+function testabin(v::Vector,vtype::Vector)
     bin=1
     tam=length(v)
     for i in 1:tam
+      if vtype[i] == :Bin
         if v[i]!=0 && v[i]!=1
             bin=0
         end
+      end
     end
     return bin
 end
@@ -52,9 +55,11 @@ function podainv(no::node)
 end
 
 function podaotim(no::node,lista::list)
-  if testabin(no.xUb) == 1
+  vtype = no.modelo.colCat
+  if testabin(no.xUb,vtype) == 1
     no.xLb=no.xUb
     no.zLb=no.zUb
+    lista.solint = lista.solint + 1
     if lista.Zinf < no.zUb
       lista.Zinf = no.zUb
       lista.xOt = no.xUb
@@ -63,7 +68,7 @@ function podaotim(no::node,lista::list)
   end
   return 0
 end
-#testei (algo estranho acontece quando defino zinf, preciso fazer a listaini de novo)
+
 function podalimit(no::node,lista::list)
   if no.zUb < lista.Zinf
     return 1
@@ -86,7 +91,6 @@ function atualizaLupper(lista::list)
 end
 
 
-#duvida se uso o "ou", só uso se a função parar assim que encontra uma resposta positiva
 function bound(no::node,lista::list)
   #retorno 1 se fiz poda, 0 c.c
   if podainv(no) == 1
@@ -109,10 +113,15 @@ end
 function achamaisfrac(no::node)
   tam=length(no.xUb)
   f=copy(no.xUb)
+  vtype = no.modelo.colCat
   for i in 1:tam
-    piso=floor(no.xUb[i])
-    partefrac=piso-no.xUb[i]
-    f[i]=min(partefrac,1-partefrac)
+    if vtype[i] == :Bin
+      teto=ceil(no.xUb[i])
+      partefrac=teto-no.xUb[i]
+      f[i]=min(partefrac,1-partefrac)
+    else
+      f[i]=0
+    end
   end
   #max,ind=findmax(f)
   return findmax(f)
@@ -173,17 +182,22 @@ function solveMIP(mod)
     println("Problema inviavel")
     return model
   end
-
+  vtype=no1.modelo.colCat
   #vejo se o problema ja deu a resposta inteira mesmo com a relaxação
-  if testabin(no1.xUb) == 1
-    model=criaretornos(mod,no1.zUb,no1.xUb,no1.status,0,0,0,0,1)
+  if testabin(no1.xUb,vtype) == 1
+    if mod.objSense == :Min
+      obj=-no1.zUb
+    else
+      obj=no1.zUb
+    end
+    model=criaretornos(mod,obj,no1.xUb,no1.status,0,[no1.zUb, no1.zLb],0,0,1)
     println("Solução otima encontrada")
     return model
   end
 
   #como nao é bin nem inviavel podamos (branch), escolho o x mais fracionario para fixar
   #usamos uma lista vazia para inicialização
-  listaini=list([],1e10,-1e10,[],0)
+  listaini=list([],1e10,-1e10,[],0,0)
 
   #criamos a lista com dois nós
   # esses nós foram originados a partir da fixação do x mais fracionario (em um no fixamos em 0 e no outro o fixamos em 1)
