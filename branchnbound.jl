@@ -210,7 +210,7 @@ function solveMIP(mod)
   ϵ = abs(S.Zsup - S.Zinf)
   cont=0
 
-  while ϵ > 1e-5 && cont < exp10(4) && length(S.L)!=0
+  while ϵ > 1e-5 && cont < exp10(3) && length(S.L)!=0
 
     cont=cont+1
 
@@ -245,7 +245,7 @@ function solveMIP(mod)
 
   time=toc()
 
-  if cont >= exp10(4)
+  if cont >= exp10(3)
     status = :UserLimit
   elseif (S.Zinf < -1e5)
     status = :Infeasible
