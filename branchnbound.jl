@@ -210,7 +210,7 @@ function solveMIP(mod)
   ϵ = abs(S.Zsup - S.Zinf)
   cont=0
 
-  while ϵ > 1e-5 && cont < 1e4 && length(S.L)!=0
+  while ϵ > 1e-5 && cont < 1e5 && length(S.L)!=0
 
     cont=cont+1
 
@@ -245,7 +245,7 @@ function solveMIP(mod)
 
   time=toc()
 
-  if (cont >= 1e4)
+  if (cont >= 1e5)
     status = :UserLimit
   elseif (S.Zinf < -1e5)
     status = :Infeasible
@@ -261,7 +261,7 @@ function solveMIP(mod)
   end
   xotim=S.xOt
   nos=length(S.L)
-  model=criaretornos(mod,obj,xotim,status,time,S.Zinf,cont,nos,0)
+  model=criaretornos(mod,obj,xotim,status,time,S.Zinf,cont,nos,S.solint)
 
 
   return model
